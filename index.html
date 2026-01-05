@@ -1,74 +1,196 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Mini App</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpaceLab LTD — Сбор данных</title>
 
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Telegram WebApp -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
 
-        body {
-            color: var(--tg-theme-text-color);
-            background: var(--tg-theme-bg-color);
-            font-family: sans-serif;
-        }
+.container {
+    background: #ffffff;
+    padding: 24px;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
 
-        .Main {
-            width: 100%;
-            padding: 25px;
-            text-align: center;
-        }
+h1 {
+    text-align: center;
+    margin-bottom: 4px;
+    color: #0088cc;
+}
 
-        h1 {
-            margin-top: 40px;
-            margin-bottom: 10px;
-        }
+.subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 20px;
+}
 
-        img {
-            width: 70px;
-            margin: 30px auto;
-        }
+label {
+    display: block;
+    margin-top: 14px;
+    font-weight: bold;
+    font-size: 14px;
+}
 
-        .btn {
-            border: 0;
-            border-radius: 5px;
-            margin-top: 50px;
-            height: 60px;
-            width: 200px;
-            font-size: 20px;
-            font-weight: 500;
-            cursor: pointer;
-            color: var(--tg-theme-button-text-color);
-            background: var(--tg-theme-button-color);
-        }
-    </style>
+select, textarea, input[type="file"] {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+textarea {
+    min-height: 70px;
+    resize: vertical;
+}
+
+.radio-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.radio-group label {
+    font-weight: normal;
+}
+
+button {
+    margin-top: 22px;
+    width: 100%;
+    padding: 14px;
+    background: #0088cc;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #006fa6;
+}
+
+#status {
+    margin-top: 16px;
+    text-align: center;
+    font-weight: bold;
+}
+</style>
 </head>
+
 <body>
+<div class="container">
+    <h1>SpaceLab LTD</h1>
+    <div class="subtitle">Форма сбора данных</div>
 
-<div class="Main">
-    <h1>Тестовое приложение</h1>
+    <form id="dataForm">
+        <label>Животное</label>
+        <select id="animal" required>
+            <option value="">Выберите</option>
+            <option>Кот</option>
+            <option>Собака</option>
+            <option>Птица</option>
+            <option>Кролик</option>
+            <option>Другое</option>
+        </select>
 
-    <!-- ВАЖНО: обычный путь -->
-    <img src="bot.png" alt="logo">
+        <label>Тип реакции</label>
+        <div class="radio-group">
+            <label><input type="radio" name="reaction" value="Спокойный" required> Спокойный</label>
+            <label><input type="radio" name="reaction" value="Нейтральный"> Нейтральный</label>
+            <label><input type="radio" name="reaction" value="Беспокойный"> Беспокойный</label>
+        </div>
 
-    <button class="btn" id="closeBtn">Кнопка</button>
+        <label>Комментарий</label>
+        <textarea id="comment" placeholder="Дополнительная информация"></textarea>
+
+        <label>Фото / Видео (по желанию)</label>
+        <input type="file" id="media" accept="image/*,video/*">
+
+        <button type="submit">Отправить</button>
+    </form>
+
+    <div id="status"></div>
 </div>
 
 <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
 
-    document.getElementById("closeBtn").onclick = () => {
-        tg.close();
+const form = document.getElementById("dataForm");
+const status = document.getElementById("status");
+
+async function getLocation() {
+    try {
+        const loc = await tg.getLocation();
+        return loc || {};
+    } catch {
+        return {};
+    }
+}
+
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    status.style.color = "black";
+    status.textContent = "Отправка данных...";
+
+    const animal = document.getElementById("animal").value;
+    const reaction = document.querySelector('input[name="reaction"]:checked')?.value;
+    const comment = document.getElementById("comment").value;
+    const file = document.getElementById("media").files[0];
+    const time = new Date().toLocaleString();
+    const location = await getLocation();
+
+    const payload = {
+        animal,
+        reaction,
+        comment,
+        time,
+        latitude: location.latitude || "",
+        longitude: location.longitude || "",
+        fileName: file ? file.name : ""
     };
-</script>
 
+    fetch("https://script.google.com/macros/s/AKfycby0ZHZAab0WlVi8syzyVnJEj9ae1B6NHcBiyKrphVRzq38wCIyp5Ro3VsWvMVWzrO9gHg/exec", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    })
+    .then(res => {
+        if (res.ok) {
+            status.style.color = "green";
+            status.textContent = "Данные успешно отправлены ✅";
+            form.reset();
+        } else {
+            throw new Error();
+        }
+    })
+    .catch(() => {
+        status.style.color = "red";
+        status.textContent = "Ошибка при отправке ❌";
+    });
+});
+</script>
 </body>
 </html>
