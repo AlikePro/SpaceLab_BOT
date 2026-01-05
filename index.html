@@ -132,64 +132,65 @@ button:hover {
     <div id="status"></div>
 </div>
 
-<script>
+<script type="module">
+// --- Supabase Setup ---
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Вставь сюда свои ключи из Settings → API
+const SUPABASE_URL = "https://unecgigzwnzpqsxcyowk.supabase.co";       // <-- в кавычках
+const SUPABASE_KEY = "sb_publishable_YecyN48xdexPzjlZ4_TTJA_8eY6W1vI";    // <-- в кавычках (anon key)
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// --- Telegram WebApp ---
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
+// --- Form Handling ---
 const form = document.getElementById("dataForm");
 const status = document.getElementById("status");
 
-async function getLocation() {
-    try {
-        const loc = await tg.getLocation();
-        return loc || {};
-    } catch {
-        return {};
-    }
-}
-
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     status.style.color = "black";
     status.textContent = "Отправка данных...";
 
     const animal = document.getElementById("animal").value;
-    const reaction = document.querySelector('input[name="reaction"]:checked')?.value;
+    const reaction = document.querySelector('input[name="reaction"]:checked')?.value || "";
     const comment = document.getElementById("comment").value;
     const file = document.getElementById("media").files[0];
-    const time = new Date().toLocaleString();
-    const location = await getLocation();
 
-    const payload = {
+    let image_url = "";
+
+    // --- Upload File to Supabase Storage ---
+    if(file){
+        const { data, error } = await supabase.storage
+            .from("media")
+            .upload(`public/${Date.now()}_${file.name}`, file);
+        if(error){
+            status.textContent = "Ошибка загрузки файла";
+            status.style.color = "red";
+            return;
+        }
+        image_url = supabase.storage.from("media").getPublicUrl(data.path).publicURL;
+    }
+
+    // --- Insert data into Supabase table ---
+    const { error } = await supabase.from("reports").insert([{
         animal,
         reaction,
         comment,
-        time,
-        latitude: location.latitude || "",
-        longitude: location.longitude || "",
-        fileName: file ? file.name : ""
-    };
+        image_url
+    }]);
 
-    fetch("https://script.google.com/macros/s/AKfycby0ZHZAab0WlVi8syzyVnJEj9ae1B6NHcBiyKrphVRzq38wCIyp5Ro3VsWvMVWzrO9gHg/exec", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    })
-    .then(res => {
-        if (res.ok) {
-            status.style.color = "green";
-            status.textContent = "Данные успешно отправлены ✅";
-            form.reset();
-        } else {
-            throw new Error();
-        }
-    })
-    .catch(() => {
+    if(error){
+        status.textContent = "Ошибка отправки в базу";
         status.style.color = "red";
-        status.textContent = "Ошибка при отправке ❌";
-    });
+    } else {
+        status.textContent = "Данные успешно отправлены!";
+        status.style.color = "green";
+        form.reset();
+    }
 });
 </script>
 </body>
